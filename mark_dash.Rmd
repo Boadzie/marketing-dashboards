@@ -1,0 +1,161 @@
+---
+title: "Marketing Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: row
+    vertical_layout: scroll
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(plotly)
+library(DT)
+```
+Home {data-icon="fa-home"}
+===========================================================================
+### Introduction
+This app contains a series of dashboards for Data Science applications in Marketing for a Business(with a widespread busniess application areas), built by Boadzie Daniel('https://boadzie.surge.sh'). Each of the dashboard will be on a different page on the nav tab.
+
+
+```{r}
+conversionsDF <- read.csv(file="~/Documents/Dev_master/R_projects/marketing/marketing_dash/data/bank-additional-full.csv",
+    header=TRUE,
+    sep=";"
+  )
+  
+  # Encode conversions as 0s and 1s
+  conversionsDF$conversion <- as.integer(conversionsDF$y) - 1
+  
+  # total number of conversions
+  total <- round(sum(conversionsDF$conversion), 2)
+  
+  # total number of clients in the data
+  client <- round(nrow(conversionsDF), 2)
+  
+  # the percentage
+  percentage <- round(total / client * 100, 2)
+  
+  # the data table
+
+```
+
+Customer Conversion {data-icon="fa-users"}
+============================================================================
+Value boxes
+-------------------------------------------------------------------------------
+### Total conversion
+```{r}
+valueBox(total, icon = "fa-pencil",  caption = "Total conversion", color = "#2ecc71")
+```
+
+### Clients
+```{r}
+valueBox(client, icon = "fa-users",  caption = "Total no. customers", color = "#e74c3c")
+```
+
+### Coversion rate in percentage
+```{r}
+valueBox(percentage, icon = "fa-percent",  caption = "Conversion %", color = "#5dade2")
+```
+
+Row Dataset
+----------------------------------------------------------------------------------
+### The Dataset
+This dashboard will display customer conversion rate. The data is from UCI's Bank Marketing Dataset. It can be found at the link below: "https://archive.ics.uci.edu/ml/datasets/bank+marketing"
+
+```{r}
+ # The data set
+ data <- as_tibble(head(conversionsDF, 20))
+ datatable(data)
+ 
+```
+
+Row Visualizations
+------------------------------------------------------------------------------------
+### Conversion by age 
+```{r}
+conversionsByAge <- conversionsDF %>%
+    group_by(Age=age) %>%
+    summarise(TotalCount=n(), NumConversions=sum(conversion)) %>%
+    mutate(ConversionRate=NumConversions/TotalCount*100.0)
+  
+# line chart
+p <- ggplot(data=conversionsByAge, aes(x=Age, y=ConversionRate)) +
+        geom_line() +
+        ggtitle('Conversion Rates by Age') +
+        xlab("Age") +
+        ylab("Conversion Rate (%)") +
+        theme(plot.title = element_text(hjust = 0.5))
+ggplotly(p)
+```
+
+### Conversion by Age Group
+```{r}
+conversionsByAgeGroup <- conversionsDF %>%
+    group_by(AgeGroup=cut(age, breaks=seq(20, 70, by = 10)) ) %>%
+    summarise(TotalCount=n(), NumConversions=sum(conversion)) %>%
+    mutate(ConversionRate=NumConversions/TotalCount*100.0)
+  conversionsByAgeGroup$AgeGroup <- as.character(conversionsByAgeGroup$AgeGroup)
+  conversionsByAgeGroup$AgeGroup[6] <- "70+"
+  
+  
+
+    # bar chart
+p <- ggplot(conversionsByAgeGroup, aes(x=AgeGroup, y=ConversionRate)) +
+      geom_bar(width=0.5, stat="identity") +
+      ggtitle('Conversion Rates by Age Groups') +
+      xlab("Age") +
+      ylab("Conversion Rate (%)") +
+      theme(plot.title = element_text(hjust = 0.5))
+ggplotly(p)
+```
+
+Row Conversion vs Non-conversion
+------------------------------------------------------------------------
+### Conversion vs Non-conversion
+```{r}
+  conversionsByMaritalStatus <- conversionsDF %>%
+    group_by(Marital=marital, Conversion=conversion) %>%
+    summarise(Count=n())
+  
+    # pie chart
+a <- ggplot(conversionsByMaritalStatus, aes(x="", y=Count, fill=Marital)) +
+      geom_bar(width=1, stat = "identity", position=position_fill()) +
+      geom_text(aes(x=1.25, label=Count), position=position_fill(vjust = 0.5)) +
+      coord_polar("y") +
+      facet_wrap(~Conversion) +
+      ggtitle('Marital Status (0: Non Conversions, 1: Conversions)') +
+      theme(
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        plot.title=element_text(hjust=0.5),
+        legend.position='bottom'
+      )
+ggplotly(a)
+```
+```
+
+
+Row Conversion by Age and Marital Status
+-------------------------------------------------------------------------------
+
+### Conversion by Age and Marital Status
+```{r}
+conversionsByAgeMarital <- conversionsDF %>%
+    group_by(AgeGroup=cut(age, breaks= seq(20, 70, by = 10)), Marital=marital) %>%
+    summarise(Count=n(), NumConversions=sum(conversion)) %>%
+    mutate(TotalCount=sum(Count)) %>%
+    mutate(ConversionRate=NumConversions/TotalCount)
+  conversionsByAgeMarital$AgeGroup <- as.character(conversionsByAgeMarital$AgeGroup)
+  conversionsByAgeMarital$AgeGroup[is.na(conversionsByAgeMarital$AgeGroup)] <- "70+"
+  
+    # bar chart
+m <- ggplot(conversionsByAgeMarital, aes(x=AgeGroup, y=ConversionRate, fill=Marital)) +
+      geom_bar(width=0.5, stat="identity", position="dodge") +
+      ylab("Conversion Rate (%)") +
+      xlab("Age") +
+      ggtitle("Conversion Rates by Age and Marital Status") +
+      theme(plot.title=element_text(hjust=0.5))
+ggplotly(m)
+```
